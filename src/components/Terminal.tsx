@@ -18,6 +18,19 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
     return saved ? JSON.parse(saved) : [];
   });
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [sudoPrompt, setSudoPrompt] = useState<{ command: string } | null>(null);
+
+  const [commandCount, setCommandCount] = useState(0);
+  const [showToast, setShowToast] = useState(false);
+  const [toastDismissed, setToastDismissed] = useState(false);
+
+  useEffect(() => {
+    if (toastDismissed) return;
+    const timer = setTimeout(() => {
+      setShowToast(true);
+    }, 45000);
+    return () => clearTimeout(timer);
+  }, [toastDismissed]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,37 +49,62 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
     setHistory(prev => [...prev, { id: Math.random().toString(36).substring(7), type, content }]);
   };
 
-  const executeCommand = (cmdStr: string) => {
+  const executeCommand = (cmdStr: string, isSudo: boolean = false) => {
     const trimmed = cmdStr.trim();
     if (!trimmed) return;
 
-    // Save to command history
-    const newHistory = [...commandHistory, trimmed];
-    setCommandHistory(newHistory);
-    setHistoryIndex(-1);
-    localStorage.setItem('evos_command_history', JSON.stringify(newHistory));
+    if (!isSudo && cmdStr !== 'sudo') {
+      setCommandCount(prev => {
+        const next = prev + 1;
+        if (next === 5 && !toastDismissed) {
+          setShowToast(true);
+        }
+        return next;
+      });
+    }
 
-    addHistory('input', `evstudent@evcyberacademy:${fs.cwd}$ ${trimmed}`);
+    if (!isSudo) {
+      // Save to command history
+      const newHistory = [...commandHistory, trimmed];
+      setCommandHistory(newHistory);
+      setHistoryIndex(-1);
+      localStorage.setItem('evos_command_history', JSON.stringify(newHistory));
+
+      addHistory('input', `evstudent@evcyberacademy:${fs.cwd}$ ${trimmed}`);
+    }
     
     const parts = trimmed.split(/\s+/);
     const cmd = parts[0];
     const args = parts.slice(1);
 
     switch (cmd) {
+      case 'sudo':
+        if (args.length === 0) {
+          addHistory('error', 'usage: sudo <command>');
+        } else {
+          setSudoPrompt({ command: args.join(' ') });
+        }
+        break;
+
       case 'help':
         addHistory('output', (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 pt-2 opacity-90">
-            <p><span className="text-zinc-400">ls</span> - List directory content</p>
-            <p><span className="text-zinc-400">cd [dir]</span> - Change directory</p>
-            <p><span className="text-zinc-400">mkdir [dir]</span> - Create directory</p>
-            <p><span className="text-zinc-400">touch [file]</span> - Create file</p>
-            <p><span className="text-zinc-400">cat [file]</span> - Read file content</p>
-            <p><span className="text-zinc-400">pwd</span> - Print working directory</p>
-            <p><span className="text-zinc-400">whoami</span> - Show current user</p>
-            <p><span className="text-zinc-400">clear</span> - Clear terminal</p>
-            <p><span className="text-zinc-400">echo</span> - Print text</p>
-            <p><span className="text-zinc-400">help</span> - Show this message</p>
-            <p><span className="text-zinc-400">exit</span> - Logout of EV OS</p>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 pt-2 opacity-90">
+              <p><span className="text-zinc-400">ls</span> - List directory content</p>
+              <p><span className="text-zinc-400">cd [dir]</span> - Change directory</p>
+              <p><span className="text-zinc-400">mkdir [dir]</span> - Create directory</p>
+              <p><span className="text-zinc-400">touch [file]</span> - Create file</p>
+              <p><span className="text-zinc-400">cat [file]</span> - Read file content</p>
+              <p><span className="text-zinc-400">pwd</span> - Print working directory</p>
+              <p><span className="text-zinc-400">whoami</span> - Show current user</p>
+              <p><span className="text-zinc-400">clear</span> - Clear terminal</p>
+              <p><span className="text-zinc-400">echo</span> - Print text</p>
+              <p><span className="text-zinc-400">help</span> - Show this message</p>
+              <p><span className="text-zinc-400">exit</span> - Logout of EV OS</p>
+            </div>
+            <p className="text-yellow-400 font-bold text-[11px] sm:text-xs">
+              *** SYSTEM MESSAGE: Master advanced commands and ethical hacking in the CSSP program. Grab your 50% discount using the link above! ***
+            </p>
           </div>
         ));
         break;
@@ -241,6 +279,8 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
           addHistory('error', `cat: ${targetPath}: No such file or directory`);
         } else if (node.type === 'dir') {
           addHistory('error', `cat: ${targetPath}: Is a directory`);
+        } else if (node.isPrivileged && !isSudo) {
+          addHistory('error', `cat: ${targetPath}: Permission denied`);
         } else {
           addHistory('output', node.content || '');
         }
@@ -254,6 +294,19 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (sudoPrompt) {
+      const pwd = input.trim();
+      addHistory('input', `[sudo] password for evstudent: ${'*'.repeat(pwd.length)}`);
+      
+      if (pwd === 'evcyber2026') {
+        executeCommand(sudoPrompt.command, true);
+      } else {
+        addHistory('error', 'sudo: incorrect password');
+      }
+      setSudoPrompt(null);
+      setInput('');
+      return;
+    }
     executeCommand(input);
     setInput('');
   };
@@ -343,11 +396,17 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
           </div>
           
           <form onSubmit={handleSubmit} className="flex items-center gap-4 bg-black border border-zinc-800 p-3 rounded-md shadow-inner">
-            <span className="text-green-800 hidden sm:inline whitespace-nowrap">evstudent@evcyberacademy:{fs.cwd}$</span>
-            <span className="text-green-800 sm:hidden">$</span>
+            {sudoPrompt ? (
+              <span className="text-zinc-500 whitespace-nowrap">[sudo] password for evstudent:</span>
+            ) : (
+              <>
+                <span className="text-green-800 hidden sm:inline whitespace-nowrap">evstudent@evcyberacademy:{fs.cwd}$</span>
+                <span className="text-green-800 sm:hidden">$</span>
+              </>
+            )}
             <input
               ref={inputRef}
-              type="text"
+              type={sudoPrompt ? "password" : "text"}
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
@@ -355,7 +414,7 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
               }}
               onKeyDown={handleKeyDown}
               className="bg-transparent border-none outline-none text-green-500 w-full placeholder:text-zinc-800"
-              placeholder="Enter command..."
+              placeholder={sudoPrompt ? "" : "Enter command..."}
               autoFocus
               autoComplete="off"
               autoCorrect="off"
@@ -365,6 +424,58 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
           </form>
         </div>
       </main>
+
+      {/* Persistent CTA Buttons */}
+      <div className="fixed top-14 right-4 z-50 flex flex-col items-end gap-3 pointer-events-none">
+        <a 
+          href="https://evcyberacademy.in/payment" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="pointer-events-auto flex items-center gap-2 px-4 py-2.5 bg-green-500 text-black border border-green-400 shadow-[0_0_20px_rgba(34,197,94,0.8)] rounded-md animate-pulse hover:bg-green-400 hover:shadow-[0_0_30px_rgba(34,197,94,1)] transition-all text-[11px] sm:text-sm font-extrabold tracking-widest uppercase"
+        >
+          🚀 Join CSSP for 50% Offer!
+        </a>
+        
+        <a 
+          href="tel:9789459354"
+          className="pointer-events-auto flex items-center gap-2 px-3 py-1.5 bg-zinc-900 text-green-400 border border-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.2)] rounded-md hover:bg-zinc-800 transition-colors text-[10px] sm:text-xs font-bold tracking-wider uppercase"
+        >
+          📞 BOOK A CALL: 9789459354
+        </a>
+      </div>
+
+      {/* Smart Toast Notification */}
+      {showToast && !toastDismissed && (
+        <div className="fixed top-28 right-4 left-4 sm:left-auto sm:w-80 z-50 bg-zinc-950 border border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.15)] rounded-md p-4 overflow-hidden transition-all duration-300">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent opacity-50"></div>
+          <button 
+            onClick={() => {
+              setShowToast(false);
+              setToastDismissed(true);
+            }}
+            className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
+          >
+            ✕
+          </button>
+          <div className="mt-1 space-y-3">
+            <h3 className="text-green-400 font-bold text-sm flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              SYSTEM ALERT
+            </h3>
+            <p className="text-zinc-300 text-xs leading-relaxed">
+              Thanks for accessing the EV OS Lab! 🔥 Ready to master cybersecurity? Enroll in the CSSP Cyber Security Starter Program today.
+            </p>
+            <a 
+              href="https://evcyberacademy.in/payment" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="block w-full text-center py-2 bg-green-600 hover:bg-green-500 text-black font-bold text-xs uppercase tracking-widest rounded transition-colors"
+            >
+              Claim 50% Off Now
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

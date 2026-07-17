@@ -2,6 +2,7 @@ export type FileNode = {
   type: 'file' | 'dir';
   content?: string;
   isExecutable?: boolean;
+  isPrivileged?: boolean;
   children?: Record<string, FileNode>;
 };
 
@@ -21,7 +22,8 @@ const INITIAL_FS: FileNode = {
           children: {
             'welcome.txt': { type: 'file', content: 'Welcome to EV OS!\nType "help" to see available commands.' },
             'about.txt': { type: 'file', content: 'EV OS is a mobile-first Linux terminal simulator for beginners.' },
-            'run.sh': { type: 'file', content: 'echo "Executing run script..."', isExecutable: true }
+            'run.sh': { type: 'file', content: 'echo "Executing run script..."', isExecutable: true },
+            'secret_flags.txt': { type: 'file', content: 'FLAG{sudo_m4st3r_c55p}\nFLAG{h4ck_th3_pl4n3t}\n\nGreat job! You have learned how to elevate privileges using sudo. This is a critical concept in Linux and cybersecurity.', isPrivileged: true }
           }
         }
       }
