@@ -86,6 +86,31 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
         }
         break;
 
+      case 'theme': {
+        const selectedTheme = args[0];
+        if (!selectedTheme) {
+          addHistory('output', (
+            <div className="space-y-1">
+              <p>Available themes:</p>
+              <ul className="list-disc list-inside ml-2">
+                <li><span className="text-zinc-300">green</span> - Classic Green</li>
+                <li><span className="text-zinc-300">purple</span> - Cyberpunk Purple</li>
+                <li><span className="text-zinc-300">amber</span> - Matrix Amber</li>
+              </ul>
+              <p className="mt-2 text-zinc-400">Usage: theme &lt;color&gt;</p>
+            </div>
+          ));
+        } else if (['green', 'purple', 'amber'].includes(selectedTheme)) {
+          const className = selectedTheme === 'green' ? '' : `theme-${selectedTheme}`;
+          document.documentElement.className = className;
+          localStorage.setItem('evos_theme', selectedTheme);
+          addHistory('output', `Theme changed to ${selectedTheme}`);
+        } else {
+          addHistory('error', `theme: unknown theme '${selectedTheme}'`);
+        }
+        break;
+      }
+
       case 'help':
         addHistory('output', (
           <div className="space-y-4">
@@ -99,6 +124,7 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
               <p><span className="text-zinc-400">whoami</span> - Show current user</p>
               <p><span className="text-zinc-400">clear</span> - Clear terminal</p>
               <p><span className="text-zinc-400">echo</span> - Print text</p>
+              <p><span className="text-zinc-400">theme</span> - Toggle color scheme</p>
               <p><span className="text-zinc-400">help</span> - Show this message</p>
               <p><span className="text-zinc-400">exit</span> - Logout of EV OS</p>
             </div>
@@ -139,7 +165,7 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
         } else if (node.type === 'file') {
           const isExec = node.isExecutable;
           addHistory('output', (
-            <span className={isExec ? 'text-green-400 font-bold' : 'text-zinc-300'}>
+            <span className={isExec ? 'text-primary-400 font-bold' : 'text-zinc-300'}>
               {targetPath}
             </span>
           ));
@@ -155,7 +181,7 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
                   const child = children[k];
                   const isDir = child.type === 'dir';
                   const isExec = child.type === 'file' && child.isExecutable;
-                  const className = isDir ? 'text-blue-400 font-bold' : isExec ? 'text-green-400 font-bold' : 'text-zinc-300';
+                  const className = isDir ? 'text-blue-400 font-bold' : isExec ? 'text-primary-400 font-bold' : 'text-zinc-300';
                   return (
                     <span key={k} className={className}>
                       {k}{isDir ? '/' : ''}
@@ -344,24 +370,24 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div 
-      className="flex flex-col w-full h-[100dvh] bg-black text-green-500 font-mono overflow-hidden select-none"
+      className="flex flex-col w-full h-[100dvh] bg-black text-primary-500 font-mono overflow-hidden select-none"
       onClick={handleContainerClick}
     >
       {/* Top Status Bar */}
       <div className="h-10 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between px-4 text-[10px] tracking-widest text-zinc-400 uppercase shrink-0">
-        <div>System Status: <span className="text-green-400">Secure</span></div>
+        <div>System Status: <span className="text-primary-400">Secure</span></div>
         <div className="font-sans flex gap-6"><span>Signal: 100%</span></div>
       </div>
 
       <main className="flex-1 flex flex-col relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_50%,rgba(34,197,94,0.05),transparent_70%)]"></div>
+        <div className="absolute inset-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_50%_50%,var(--color-primary-500),transparent_70%)]"></div>
         
         {/* Scrollable output area */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-4 text-sm leading-relaxed z-10 pb-32 sm:pb-32">
           <div className="text-zinc-500 opacity-50 mb-8">[EV OS v1.0.4 - Initializing Virtual Environment... OK]</div>
           <div className="space-y-1">
-            <p className="text-green-400/80">Welcome to EV OS Terminal Emulation</p>
-            <p className="text-green-400/80">Copyright (c) 2026 EV CYBER ACADEMY. All Rights Reserved.</p>
+            <p className="text-primary-400/80">Welcome to EV OS Terminal Emulation</p>
+            <p className="text-primary-400/80">Copyright (c) 2026 EV CYBER ACADEMY. All Rights Reserved.</p>
           </div>
           
           <div className="pt-4 space-y-3 break-words">
@@ -369,7 +395,7 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
               <div key={item.id} className="whitespace-pre-wrap">
                 {item.type === 'input' && <p className="opacity-60">{item.content}</p>}
                 {item.type === 'error' && <p className="text-red-400">{item.content}</p>}
-                {item.type === 'output' && <div className="text-green-300">{item.content}</div>}
+                {item.type === 'output' && <div className="text-primary-300">{item.content}</div>}
               </div>
             ))}
             <div ref={bottomRef} />
@@ -388,7 +414,7 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
                   executeCommand(qa.cmd);
                   inputRef.current?.focus();
                 }}
-                className={`px-3 py-1.5 bg-zinc-900 border border-zinc-700 text-[10px] uppercase tracking-widest hover:bg-zinc-800 transition-colors shrink-0 ${qa.cmd === 'help' ? 'bg-green-900/20 border-green-800/50 text-green-400' : 'text-zinc-300'}`}
+                className={`px-3 py-1.5 bg-zinc-900 border border-zinc-700 text-[10px] uppercase tracking-widest hover:bg-zinc-800 transition-colors shrink-0 ${qa.cmd === 'help' ? 'bg-primary-900/20 border-primary-800/50 text-primary-400' : 'text-zinc-300'}`}
               >
                 {qa.label}
               </button>
@@ -400,8 +426,8 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
               <span className="text-zinc-500 whitespace-nowrap">[sudo] password for evstudent:</span>
             ) : (
               <>
-                <span className="text-green-800 hidden sm:inline whitespace-nowrap">evstudent@evcyberacademy:{fs.cwd}$</span>
-                <span className="text-green-800 sm:hidden">$</span>
+                <span className="text-primary-800 hidden sm:inline whitespace-nowrap">evstudent@evcyberacademy:{fs.cwd}$</span>
+                <span className="text-primary-800 sm:hidden">$</span>
               </>
             )}
             <input
@@ -413,7 +439,7 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
                 setHistoryIndex(-1); // Reset index on manual edit
               }}
               onKeyDown={handleKeyDown}
-              className="bg-transparent border-none outline-none text-green-500 w-full placeholder:text-zinc-800"
+              className="bg-transparent border-none outline-none text-primary-500 w-full placeholder:text-zinc-800"
               placeholder={sudoPrompt ? "" : "Enter command..."}
               autoFocus
               autoComplete="off"
@@ -431,14 +457,14 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
           href="https://evcyberacademy.in/payment" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="pointer-events-auto flex items-center gap-2 px-4 py-2.5 bg-green-500 text-black border border-green-400 shadow-[0_0_20px_rgba(34,197,94,0.8)] rounded-md animate-pulse hover:bg-green-400 hover:shadow-[0_0_30px_rgba(34,197,94,1)] transition-all text-[11px] sm:text-sm font-extrabold tracking-widest uppercase"
+          className="pointer-events-auto flex items-center gap-2 px-4 py-2.5 bg-primary-500 text-black border border-primary-400 shadow-[0_0_20px_var(--color-primary-500)] rounded-md animate-pulse hover:bg-primary-400 hover:shadow-[0_0_30px_var(--color-primary-500)] transition-all text-[11px] sm:text-sm font-extrabold tracking-widest uppercase"
         >
           🚀 Join CSSP for 50% Offer!
         </a>
         
         <a 
           href="tel:9789459354"
-          className="pointer-events-auto flex items-center gap-2 px-3 py-1.5 bg-zinc-900 text-green-400 border border-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.2)] rounded-md hover:bg-zinc-800 transition-colors text-[10px] sm:text-xs font-bold tracking-wider uppercase"
+          className="pointer-events-auto flex items-center gap-2 px-3 py-1.5 bg-zinc-900 text-primary-400 border border-primary-500/50 shadow-[0_0_10px_var(--color-primary-500)] rounded-md hover:bg-zinc-800 transition-colors text-[10px] sm:text-xs font-bold tracking-wider uppercase"
         >
           📞 BOOK A CALL: 9789459354
         </a>
@@ -446,8 +472,8 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
 
       {/* Smart Toast Notification */}
       {showToast && !toastDismissed && (
-        <div className="fixed top-28 right-4 left-4 sm:left-auto sm:w-80 z-50 bg-zinc-950 border border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.15)] rounded-md p-4 overflow-hidden transition-all duration-300">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent opacity-50"></div>
+        <div className="fixed top-28 right-4 left-4 sm:left-auto sm:w-80 z-50 bg-zinc-950 border border-primary-500/50 shadow-[0_0_15px_var(--color-primary-500)] rounded-md p-4 overflow-hidden transition-all duration-300">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary-500 to-transparent opacity-50"></div>
           <button 
             onClick={() => {
               setShowToast(false);
@@ -458,8 +484,8 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
             ✕
           </button>
           <div className="mt-1 space-y-3">
-            <h3 className="text-green-400 font-bold text-sm flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            <h3 className="text-primary-400 font-bold text-sm flex items-center gap-2">
+              <span className="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></span>
               SYSTEM ALERT
             </h3>
             <p className="text-zinc-300 text-xs leading-relaxed">
@@ -469,7 +495,7 @@ export default function Terminal({ onLogout }: { onLogout: () => void }) {
               href="https://evcyberacademy.in/payment" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="block w-full text-center py-2 bg-green-600 hover:bg-green-500 text-black font-bold text-xs uppercase tracking-widest rounded transition-colors"
+              className="block w-full text-center py-2 bg-primary-600 hover:bg-primary-500 text-black font-bold text-xs uppercase tracking-widest rounded transition-colors"
             >
               Claim 50% Off Now
             </a>

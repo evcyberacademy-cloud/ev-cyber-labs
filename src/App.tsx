@@ -8,6 +8,13 @@ export default function App() {
   useEffect(() => {
     const auth = localStorage.getItem('evos_auth');
     setIsAuthenticated(auth === 'true');
+
+    const theme = localStorage.getItem('evos_theme');
+    if (theme && ['purple', 'amber'].includes(theme)) {
+      document.documentElement.className = `theme-${theme}`;
+    } else {
+      document.documentElement.className = '';
+    }
   }, []);
 
   if (isAuthenticated === null) {
